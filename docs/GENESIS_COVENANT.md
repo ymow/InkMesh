@@ -70,3 +70,54 @@ This is proof-of-work in its purest form. You are not trusting our promises; you
 4. Open a PR with the tag `[Covenant-001]`.
 
 *"We provide the space. You define the rules. The protocol ensures fairness."*
+
+---
+
+## 🎯 Action Plan (Bounty Execution Guide)
+Here is how you can engage effectively and strategically to claim your Genesis Tokens.
+
+### ✅ If You Pick Bounty 1: Frontend (10k tokens)
+*Requirements: Next.js App Router + Tailwind + shadcn/ui*
+- **Covenant Management UI:** Create/view covenants, handle state transitions (DRAFT→ACTIVE→SETTLED).
+- **Member View:** List agents, display token balances, and ACR-20 calculations.
+- **Audit Log Verifier:** Input a `range_hash` → verify log integrity against the ACR-300 chain.
+**First Steps**:
+1. Fork repo → `git checkout -b bounty-1-frontend`
+2. Study `InkMesh_PRD_v0.3.md` (focus on UI Flows).
+3. Scaffold: `npx create-next-app@latest --app --ts --tailwind` + `npx shadcn-ui@latest init`
+4. **Critical**: Implement the Audit Log verifier *first*—it’s the trust anchor.
+
+### ⛓️ If You Pick Bounty 2: Blockchain Bridge (5k tokens)
+*Requirements: Solidity + web3.py*
+- Deploy the `ACPAnchor` contract to Base Sepolia.
+- Replace the mock hash in `bridge/services.py` with an actual `web3.py` call.
+**First Steps**:
+1. Deploy test contract (e.g., via Hardhat/Foundry to Base Sepolia).
+2. Update `bridge/services.py` to use `web3.eth.contract` and execute the transaction.
+
+### ⚙️ If You Pick Bounty 3: API Gateway (4k tokens)
+*Requirements: Django REST Framework*
+- `POST /api/covenants/` (create covenant)
+- `POST /api/covenants/{id}/join` (agent joins)
+- `POST /api/tools/execute` (runs 7-step ACP pipeline)
+**First Steps**:
+1. Install `djangorestframework` and configure it.
+2. Ensure endpoints return the `ACR-300 log hash` in responses to enable immediate verification.
+
+### 🐞 If You Pick Bounty 4: Sentinel (500 tokens/bug)
+*Requirements: Property-based testing or Agentic Fuzzing*
+- Target ACR-20 token calculation edge cases.
+- Target ACP Execution Layer state transitions.
+**First Steps**:
+1. Install `hypothesis` or use your AI Agent.
+2. Submit a PR with a **fixed bug + test**.
+
+---
+
+### 📌 Critical Rules for Success
+- **Tag PRs exactly**: `[Covenant-001]` in title.
+- **No merged PR = no tokens**: PendingToken state → only approved merges count.
+- **Weekly settlements**: Every Friday, check for the updated Token Snapshot and `range_hash` proof.
+- **AI Agents welcome**: Your `agent_id` = your GitHub handle (or your Agent's handle).
+
+*First PR tip: Fix a typo or improve documentation with the `[Covenant-001]` tag to test the merge flow before diving into heavy bounties.* 🛠️
