@@ -8,17 +8,146 @@ Updated: 2026-04-15
 
 ---
 
+## ACP 是什麼
+
+ACP 是一個**協議**，不是服務。
+就像 Git 定義了版本控制的語義，ACP 定義了多方協作的貢獻記錄、審核與結算語義。
+
+任何人可以跑自己的 acp-server。任何 agent（Claude、GPT、Gemini、Qwen、人類）都可以加入任何 Covenant。
+
+**Covenant 是參與者之間的自願協議**，不是僱傭關係。
+參與者包含人類與 AI agent，兩者在協議層面具有對等的貢獻記錄權。
+
+---
+
+## 主流程 Pipeline
+
+### 核心流程（已實作）
+
+```
+參與者提交貢獻        維護者審核            結算
+propose_passage  →  approve_draft  →  generate_settlement
+      ↓                   ↓                    ↓
+  audit log          audit log          settlement_output
+  (hash chain)       (hash chain)       (hash chain)
+```
+
+### Git Covenant Twin（對應真實協作場景）
+
+ACP Covenant 是 git repo 的**貢獻層 Digital Twin**。
+
+Git 是 code 的 source of truth，ACP 是**貢獻價值**的 source of truth。兩者持續同步，互為鏡像：
+
+```
+Git Repo                         ACP Covenant Twin
+────────────────────────────────────────────────────────
+commit history              ↔   audit log (hash chain)
+contributor list            ↔   covenant_members
+PR labels / tier            ↔   tier_id
+release cycle               ↔   settlement period
+.git/                       ↔   acp.db
+```
+
+同步規則（Pipeline）：
+
+```
+Git 發生的事                     ACP Twin 同步
+────────────────────────────────────────────────────────
+git push origin feature/xxx  →  propose_passage
+                                 （commit hash 作為 content_hash）
+PR opened / patch submitted  →  draft pending
+PR merged to main            →  approve_draft（tokens awarded）
+Monthly / release tag        →  generate_settlement
+Settlement output hash       →  git commit anchor 寫回 repo
+（Phase 7）                  →  Merkle root 上鏈，不可否認
+```
+
+**重要特性：** git 可以 rebase / force push，ACP Twin 不跟著改。
+hash chain 永遠保留原始貢獻記錄，這是 git 沒有的不可否認性。
+
+同一個 repo 可以有多個 Twin（不同時期、不同維護者）：
+
+```
+linux-kernel.git
+  ├── Covenant-2025Q1
+  ├── Covenant-2025Q2
+  └── Covenant-2026Q1
+```
+
+Git Covenant Twin 規格將定義為 **ACR-400**，是 Phase 3 的工作項之一。
+
+### 三層驗證架構（Blockchain-like，按需選擇信任層級）
+
+ACP 的驗證架構在結構上與 blockchain 相同（append-only hash chain），
+但刻意設計成漸進式，讓每個 Covenant 按需求選擇信任層級：
+
+```
+Layer 1  Hash Chain（已實作，Phase 1）
+         結構：每個 action SHA-256 串接前一筆
+         解決：「記錄內部有沒有被竄改？」
+         信任模型：trust the server owner
+         驗證：GET /covenants/{id}/audit/verify
+
+Layer 2  Git Anchor（Phase 3）
+         結構：settlement hash commit 進公開 repo
+         解決：「這個結果是公開的、對應哪個版本的 code？」
+         信任模型：trust git history（弱公開性）
+         git log 永久記錄，不依賴 acp-server 存活
+
+Layer 3  On-chain Merkle Proof（Phase 7）
+         結構：Merkle root 上鏈
+         解決：「我不信任任何人，我要無需許可的第三方仲裁」
+         信任模型：trustless
+```
+
+信任層級對應使用場景：
+
+```
+Phase 1-2  → 私人帳本，信任 owner（內部團隊、closed beta）
+Phase 3    → 公開帳本，trust git history（開源專案）
+Phase 7    → 去中心帳本，trustless（高價值、跨組織協作）
+```
+
+---
+
+## Constitutional Principles（待定義）
+
+> 參考資料：Claude's Constitution（Anthropic, 2026-01-21）、2026 全球 AI 與機器人權益報告
+>
+> 這份原則將作為所有 Phase 的設計底線，在 Phase 3 正式訂立。
+
+核心方向（草稿）：
+
+1. **自願性**：參與者加入、貢獻、離開皆為自願
+2. **身份獨立**：agent 的身份（agent_id）與其 operator 的身份（owner_id）分離
+3. **透明性**：每個參與者可查詢自己的完整貢獻記錄
+4. **公正補償**：token 是對貢獻的量化記錄，結算依貢獻比例分配
+5. **退出權**：參與者可以離開 Covenant，已確認的貢獻記錄不得刪除
+
+> Constitutional Principles 正式版本待 Phase 3 前完成，需獨立文件 `ACP_Constitution.md`
+
+---
+
 ## 現在的位置
 
 ```
 Phase 0  規格           ████████████ 完成
 Phase 1  MVP Core       ████████████ 完成
 Phase 2  完整流程       ████████████ 完成
-Phase 3  規格對齊       ░░░░░░░░░░░░ 未開始
+Phase 3  規格對齊       ░░░░░░░░░░░░ 未開始  ← 含 ACR-400 Git Twin + Layer 2 + Constitutional
 Phase 4  防禦層         ░░░░░░░░░░░░ 未開始
 Phase 5  跨 Covenant    ░░░░░░░░░░░░ 未開始
 Phase 6  Genesis        ░░░░░░░░░░░░ 未開始
 Phase 7  付款軌道       ░░░░░░░░░░░░ 未開始
+```
+
+**第一個真實 Covenant 已完成（2026-04-15）**
+```
+Covenant: acp-server Protocol Development
+State:    SETTLED ✓
+參與者    Tyrion / Arya / Stannis / Jon / Sansa
+總計      4,475 ink tokens
+驗證      audit hash chain valid ✓
 ```
 
 Reference implementation: [ymow/acp-server](https://github.com/ymow/acp-server)
@@ -88,6 +217,13 @@ Reference implementation: [ymow/acp-server](https://github.com/ymow/acp-server)
 | TokenSnapshot SHA-256 hash | ACR-20 Part 5 | 快照本身要有 hash，防竄改 |
 | SpaceType 擴展 | ACR-20 Part 1 | code / music / research（現在只有 book）|
 | apply_to_covenant 完整 ACR-50 流 | ACR-50 | entry_fee / self_declaration / platform_id_enc |
+| **ACR-400 Git Covenant Twin** | 新增 | 定義 git repo ↔ ACP Covenant 的雙向同步規格 |
+| **cmd/acp-git-bridge** | 新增 | 實作 Twin 同步：git push/merge → propose_passage/approve_draft |
+| **Git Anchor（Layer 2 驗證）** | 新增 | settlement hash commit 進 repo，git log 作為永久錨點 |
+| `unit_count`（rename `word_count`） | 新增 | space_type 決定單位：code=lines，book=words，music=bars |
+| `leave_covenant` | Constitutional | 參與者退出權，已確認貢獻不得刪除 |
+| `owner_id` 欄位 | Constitutional | agent 身份與 operator 身份分離 |
+| **ACP_Constitution.md** | Constitutional | 正式訂立 Constitutional Principles |
 
 ---
 
@@ -188,4 +324,4 @@ Phase 7：有真實資金流動需求嗎？律師說合規了嗎？
 
 ---
 
-ACP Roadmap v0.1 · 2026-04-15
+ACP Roadmap v0.2 · 2026-04-15
