@@ -3,7 +3,7 @@
 ```
 Title:   Agent Covenant Protocol — Implementation Roadmap
 Status:  Living Document
-Updated: 2026-04-15
+Updated: 2026-04-18
 ```
 
 ---
@@ -131,14 +131,17 @@ Phase 7    → 去中心帳本，trustless（高價值、跨組織協作）
 ## 現在的位置
 
 ```
-Phase 0  規格           ████████████ 完成
-Phase 1  MVP Core       ████████████ 完成
-Phase 2  完整流程       ████████████ 完成
-Phase 3  規格對齊       ░░░░░░░░░░░░ 未開始  ← 含 ACR-400 Git Twin + Layer 2 + Constitutional
-Phase 4  防禦層         ░░░░░░░░░░░░ 未開始
-Phase 5  跨 Covenant    ░░░░░░░░░░░░ 未開始
-Phase 6  Genesis        ░░░░░░░░░░░░ 未開始
-Phase 7  付款軌道       ░░░░░░░░░░░░ 未開始
+Phase 0   規格              ████████████ 完成
+Phase 1   MVP Core          ████████████ 完成
+Phase 2   完整流程          ████████████ 完成
+Phase 2.5 Infra Hardening   ████████████ 完成（2026-04-17/18）
+Phase 3.0 Housekeeping      ░░░░░░░░░░░░ 未開始  ← 下一站
+Phase 3.B Token Lifecycle   ░░░░░░░░░░░░ 未開始
+Phase 3.A Git Twin          ░░░░░░░░░░░░ 未開始  ← 旗艦工作
+Phase 4   防禦層             ░░░░░░░░░░░░ 未開始
+Phase 5   跨 Covenant       ░░░░░░░░░░░░ 未開始
+Phase 6   Genesis           ░░░░░░░░░░░░ 未開始
+Phase 7   付款軌道          ░░░░░░░░░░░░ 未開始
 ```
 
 **第一個真實 Covenant 已完成（2026-04-15）**
@@ -151,6 +154,11 @@ State:    SETTLED ✓
 ```
 
 Reference implementation: [ymow/acp-server](https://github.com/ymow/acp-server)
+
+**Phase 3 策略重排（2026-04-18）：** 原本單一的「Phase 3 規格對齊」拆成
+3.0 → 3.B → 3.A 三段。理由：Git Twin（3.A）是最高槓桿的旗艦工作，
+但也最容易踩 rebase / force-push 邊界 case。先跑 3.0 housekeeping + 3.B
+token lifecycle，讓 Git Twin 落地在一個完整的狀態機上，而不是邊蓋邊補。
 
 ---
 
@@ -203,11 +211,55 @@ Reference implementation: [ymow/acp-server](https://github.com/ymow/acp-server)
 
 ---
 
-## Phase 3 — 規格對齊
+## Phase 2.5 — Infra Hardening ✅
 
-**目標：acp-server 完全符合 ACR 規格，無 gap。**
+**目標：把後續每個 Phase 都依賴、但原 roadmap 沒列的基礎設施補齊。**
 
-**觸發條件：** 第一個真實 Covenant 跑完，確認流程體驗正確後。
+這些都不是新 feature，而是把既有流程的耐用度拉到可以承接 Phase 3/4/7 的等級。
+在 2026-04-17 / 04-18 兩天內連續落地，避免日後每個 Phase 都卡同一組根因問題。
+
+| 工作項 | 解鎖的後續工作 |
+|--------|---------------|
+| **ParamsPolicy**（ACP Spec v0.2 Part 6）— 把 ad-hoc `maskSensitive()` 換成 per-tool 宣告式 policy；rune-aware 長度；StoreHashOnly canonical JSON | Phase 3.A Layer 2 Git Anchor — 沒有這層，raw 內文會隨 audit log 外洩進公開 git commit |
+| **`budget.RebuildFromAuditLog`**（ACR-300 Part 8）— 從 durable audit log 重建 `budget_spent`，正確處理 `reject_draft` 的退款半交易 | Phase 4 Redis budget counter — cache 冷啟 / 漂移可從 ledger 復原，durable storage 是唯一真相 |
+| **int64 minor-units + `cost_currency`**（ACR-300@2.2）— cost 從 float → int cents，加 ISO 4217 currency 欄位入 hash payload；computeHash 按 spec_version 分支 (2.0 / 2.1 / 2.2) | Phase 7 x402 multi-currency — 不必在上鏈後遷移 live chain；USD/EUR 同值不再 hash 碰撞 |
+| **Tool 介面收窄**（`CostEstimator` / `ReceiptEnricher` / `PolicyAware` 可選 mixin）— 核心介面從 7 method 降到 5，其他能力用 type assertion 解析 | Phase 4 rate-limit / similarity / concentration 可以新增 mixin interface，不必改動 8 個既有 tool 檔 |
+
+**為什麼這些值得獨立列一個 Phase：**
+- 每一項都有明確的「下一 Phase 解鎖」意義，不是抽象整理
+- 把它們蓋掉前，Phase 3 任何一個工作都會變成「邊做邊補無限 yak shave」
+- 這也是 Constitutional Principles 正式落文前的最後一輪技術補課
+
+**尚未蓋到、但同類型的 debt：**
+- `budget_counters.currency` / 覆蓋層 covenant-level 幣別驗證（下放到 Phase 3.0）
+- Hash computeHash 的 spec_version 分支會在 2.5+ 變成維護負擔 — 考慮之後用 version registry pattern，或凍結 2.0/2.1 只留 migration tool
+
+---
+
+## Phase 3.0 — Housekeeping
+
+**目標：在旗艦工作（3.A / 3.B）前，把容易但阻擋下游的小 rename / 分離 / 補欄位全清掉。**
+
+**觸發條件：** 2.5 完成後立即開跑，時長 ~1 週。
+
+| 工作項 | ACR 來源 | 說明 |
+|--------|---------|------|
+| `unit_count`（rename `word_count`） | ACR-20 Part 1 | space_type 決定單位：code=lines / book=words / music=bars；阻擋 SpaceType 擴展 |
+| `owner_id` 欄位（agent vs operator 分離） | Constitutional | 不分離就沒辦法寫 Constitutional Principles |
+| 覆蓋 `cost_currency` 到 budget 層 | Phase 2.5 延伸 | `budget_counters.currency` + `covenants.budget_currency`；execution.Run 拒絕跨幣別充值；預備 Phase 7 |
+| **ACP_Constitution.md 草案** | Constitutional | 寫成文字，作為 3.A / 3.B 所有 feature 的對齊底線 |
+| TODO.md / ACP_Roadmap 互鎖審查 | — | 確保兩份文件對齊；3.0 末尾做一次 review |
+
+**可以做：** 為 3.A / 3.B 鋪完最後一層地基
+**不能做：** 任何需要 ACR-400 spec 或 TokenRule 解析器的東西
+
+---
+
+## Phase 3.B — Token Lifecycle 完整化
+
+**目標：把 Phase 1/2 留下來的狀態機半成品全部收尾，讓 Git Twin（3.A）有一個不會漏水的 foundation。**
+
+**觸發條件：** 3.0 housekeeping 完成。
 
 | 工作項 | ACR 來源 | 說明 |
 |--------|---------|------|
@@ -217,13 +269,28 @@ Reference implementation: [ymow/acp-server](https://github.com/ymow/acp-server)
 | TokenSnapshot SHA-256 hash | ACR-20 Part 5 | 快照本身要有 hash，防竄改 |
 | SpaceType 擴展 | ACR-20 Part 1 | code / music / research（現在只有 book）|
 | apply_to_covenant 完整 ACR-50 流 | ACR-50 | entry_fee / self_declaration / platform_id_enc |
-| **ACR-400 Git Covenant Twin** | 新增 | 定義 git repo ↔ ACP Covenant 的雙向同步規格 |
-| **cmd/acp-git-bridge** | 新增 | 實作 Twin 同步：git push/merge → propose_passage/approve_draft |
-| **Git Anchor（Layer 2 驗證）** | 新增 | settlement hash commit 進 repo，git log 作為永久錨點 |
-| `unit_count`（rename `word_count`） | 新增 | space_type 決定單位：code=lines，book=words，music=bars |
 | `leave_covenant` | Constitutional | 參與者退出權，已確認貢獻不得刪除 |
-| `owner_id` 欄位 | Constitutional | agent 身份與 operator 身份分離 |
-| **ACP_Constitution.md** | Constitutional | 正式訂立 Constitutional Principles |
+
+**可以做：** 所有狀態機 query / 退出路徑齊備；Git Twin 可以放心 map
+**不能做：** 對外 webhook / git bridge（那是 3.A）
+
+---
+
+## Phase 3.A — Git Twin 旗艦
+
+**目標：acp-server 不再只是「另一個 audit DB」，而是可見的「git 的貢獻層 Digital Twin」。**
+
+**觸發條件：** 3.B 完成，狀態機沒漏洞。
+
+| 工作項 | ACR 來源 | 說明 |
+|--------|---------|------|
+| **ACR-400 Git Covenant Twin spec** | 新增 | 定義 git repo ↔ ACP Covenant 的雙向同步規格 |
+| **cmd/acp-git-bridge**（單向 git→ACP MVP） | 新增 | 實作 Twin 同步：git push/merge → propose_passage/approve_draft |
+| **Git Anchor（Layer 2 驗證）** | 新增 | settlement hash commit 進 repo，git log 作為永久錨點 |
+| Rebase / force-push 處理 | 新增 | Twin 不跟著改；hash chain 保留原始貢獻記錄的不可否認性 |
+
+**可以做：** Covenant 對外有公開可查的 git 錨點；信任模型從「trust server owner」升級到「trust git history」
+**不能做：** 開放陌生人註冊（那是 Phase 4）
 
 ---
 
@@ -303,14 +370,19 @@ Reference implementation: [ymow/acp-server](https://github.com/ymow/acp-server)
 每個 Phase 進入前的關鍵問題：
 
 ```
-Phase 3：第一個真實 Covenant 跑完了嗎？流程體驗對嗎？
-Phase 4：有外部不認識的 Agent 想進來嗎？
-Phase 5：有超過 3 個 Owner 在跑嗎？
-Phase 6：有成熟的 repo 想做歷史貢獻映射嗎？
-Phase 7：有真實資金流動需求嗎？律師說合規了嗎？
+Phase 3.0：2.5 Infra Hardening 真的蓋完了嗎？（Rebuild / Policy / Currency / Interface narrowing 全綠？）
+Phase 3.B：3.0 housekeeping 清完？Constitution.md 有草案？
+Phase 3.A：3.B 狀態機沒漏洞？ACR-400 spec 有 draft？
+Phase 4  ：有外部不認識的 Agent 想進來嗎？Git Anchor 已經對外公開嗎？
+Phase 5  ：有超過 3 個 Owner 在跑嗎？
+Phase 6  ：有成熟的 repo 想做歷史貢獻映射嗎？
+Phase 7  ：有真實資金流動需求嗎？律師說合規了嗎？
 ```
 
 不需要依序做完才能跳。每個 Phase 獨立，由實際需求觸發。
+3.0 → 3.B → 3.A 的建議順序只是**風險排序**，不是硬依賴 —
+若外部壓力迫使 Git Twin 先落地，可以跳過 3.B 直接打 3.A，
+但要接受「狀態機邊蓋邊補」的成本。
 
 ---
 
@@ -324,4 +396,4 @@ Phase 7：有真實資金流動需求嗎？律師說合規了嗎？
 
 ---
 
-ACP Roadmap v0.2 · 2026-04-15
+ACP Roadmap v0.3 · 2026-04-18（Phase 2.5 新增；Phase 3 拆成 3.0 / 3.B / 3.A）
