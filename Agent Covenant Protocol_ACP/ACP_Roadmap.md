@@ -110,13 +110,11 @@ Phase 7    → 去中心帳本，trustless（高價值、跨組織協作）
 
 ---
 
-## Constitutional Principles（待定義）
+## Constitutional Principles
 
 > 參考資料：Claude's Constitution（Anthropic, 2026-01-21）、2026 全球 AI 與機器人權益報告
->
-> 這份原則將作為所有 Phase 的設計底線，在 Phase 3 正式訂立。
 
-核心方向（草稿）：
+五條核心原則，作為所有 Phase 的設計底線：
 
 1. **自願性**：參與者加入、貢獻、離開皆為自願
 2. **身份獨立**：agent 的身份（agent_id）與其 operator 的身份（owner_id）分離
@@ -124,7 +122,8 @@ Phase 7    → 去中心帳本，trustless（高價值、跨組織協作）
 4. **公正補償**：token 是對貢獻的量化記錄，結算依貢獻比例分配
 5. **退出權**：參與者可以離開 Covenant，已確認的貢獻記錄不得刪除
 
-> Constitutional Principles 正式版本待 Phase 3 前完成，需獨立文件 `ACP_Constitution.md`
+> v0.1 draft 已落文（Phase 3.0，2026-04-18），見獨立文件 [`ACP_Constitution.md`](./ACP_Constitution.md)。
+> 正式定稿（v1.0）待 Phase 3.B/4 review 後完成。
 
 ---
 
@@ -135,9 +134,9 @@ Phase 0   規格              ████████████ 完成
 Phase 1   MVP Core          ████████████ 完成
 Phase 2   完整流程          ████████████ 完成
 Phase 2.5 Infra Hardening   ████████████ 完成（2026-04-17/18）
-Phase 3.0 Housekeeping      ░░░░░░░░░░░░ 未開始  ← 下一站
-Phase 3.B Token Lifecycle   ░░░░░░░░░░░░ 未開始
-Phase 3.A Git Twin          ░░░░░░░░░░░░ 未開始  ← 旗艦工作
+Phase 3.0 Housekeeping      ████████████ 完成（2026-04-18）
+Phase 3.B Token Lifecycle   ████████████ 完成（2026-04-18）
+Phase 3.A Git Twin          ░░░░░░░░░░░░ 未開始  ← 旗艦工作（下一站）
 Phase 4   防禦層             ░░░░░░░░░░░░ 未開始
 Phase 5   跨 Covenant       ░░░░░░░░░░░░ 未開始
 Phase 6   Genesis           ░░░░░░░░░░░░ 未開始
@@ -231,48 +230,48 @@ token lifecycle，讓 Git Twin 落地在一個完整的狀態機上，而不是�
 - 這也是 Constitutional Principles 正式落文前的最後一輪技術補課
 
 **尚未蓋到、但同類型的 debt：**
-- `budget_counters.currency` / 覆蓋層 covenant-level 幣別驗證（下放到 Phase 3.0）
+- ~~`budget_counters.currency` / 覆蓋層 covenant-level 幣別驗證~~（Phase 3.0 已落地，execution.Run Step 4 拒絕跨幣別）
 - Hash computeHash 的 spec_version 分支會在 2.5+ 變成維護負擔 — 考慮之後用 version registry pattern，或凍結 2.0/2.1 只留 migration tool
 
 ---
 
-## Phase 3.0 — Housekeeping
+## Phase 3.0 — Housekeeping ✅
 
 **目標：在旗艦工作（3.A / 3.B）前，把容易但阻擋下游的小 rename / 分離 / 補欄位全清掉。**
 
-**觸發條件：** 2.5 完成後立即開跑，時長 ~1 週。
+**狀態：** 2026-04-18 完成（五項全綠，實測時長一個工作天）。
 
-| 工作項 | ACR 來源 | 說明 |
-|--------|---------|------|
-| `unit_count`（rename `word_count`） | ACR-20 Part 1 | space_type 決定單位：code=lines / book=words / music=bars；阻擋 SpaceType 擴展 |
-| `owner_id` 欄位（agent vs operator 分離） | Constitutional | 不分離就沒辦法寫 Constitutional Principles |
-| 覆蓋 `cost_currency` 到 budget 層 | Phase 2.5 延伸 | `budget_counters.currency` + `covenants.budget_currency`；execution.Run 拒絕跨幣別充值；預備 Phase 7 |
-| **ACP_Constitution.md 草案** | Constitutional | 寫成文字，作為 3.A / 3.B 所有 feature 的對齊底線 |
-| TODO.md / ACP_Roadmap 互鎖審查 | — | 確保兩份文件對齊；3.0 末尾做一次 review |
+| 工作項 | ACR 來源 | 狀態 | 實作 ref |
+|--------|---------|------|---------|
+| `unit_count`（rename `word_count`） | ACR-20 Part 1 | ✅ | acp-server `d65ca7d` |
+| 覆蓋 `cost_currency` 到 budget 層 | Phase 2.5 延伸 | ✅ | acp-server `2cc64dd`（`budget_counters.currency` + `covenants.budget_currency` + cross-currency rejection at Step 4） |
+| `owner_id` 欄位（agent vs operator 分離） | Constitutional | ✅ | acp-server `cf1681f`（`covenants.owner_id` 顯式欄位 + 遷移 backfill） |
+| **ACP_Constitution.md v0.1 draft** | Constitutional | ✅ | [`ACP_Constitution.md`](./ACP_Constitution.md)（五原則條文化 + 優先順序 + 修訂流程） |
+| TODO.md / ACP_Roadmap 互鎖審查 | — | ✅ | 本次更新 |
 
 **可以做：** 為 3.A / 3.B 鋪完最後一層地基
 **不能做：** 任何需要 ACR-400 spec 或 TokenRule 解析器的東西
 
 ---
 
-## Phase 3.B — Token Lifecycle 完整化
+## Phase 3.B — Token Lifecycle 完整化 ✅
 
 **目標：把 Phase 1/2 留下來的狀態機半成品全部收尾，讓 Git Twin（3.A）有一個不會漏水的 foundation。**
 
-**觸發條件：** 3.0 housekeeping 完成。
+**狀態：** 2026-04-18 完成（六項綠燈落地；`apply_to_covenant` 完整 ACR-50 流延至 Phase 4 與 Git Twin 一起收）。主體合流點為 acp-server `01bc876`。
 
-| 工作項 | ACR 來源 | 說明 |
-|--------|---------|------|
-| TokenRule 公式解析器 | ACR-20 Part 2 | 現在硬編碼，需支援自定義公式 |
-| `get_token_history()` | ACR-20 Part 7 | 查詢積分歷史記錄 |
-| token rank 欄位 | ACR-20 Part 7 | 在 Covenant 內的積分排名 |
-| TokenSnapshot SHA-256 hash | ACR-20 Part 5 | 快照本身要有 hash，防竄改 |
-| SpaceType 擴展 | ACR-20 Part 1 | code / music / research（現在只有 book）|
-| apply_to_covenant 完整 ACR-50 流 | ACR-50 | entry_fee / self_declaration / platform_id_enc |
-| `leave_covenant` | Constitutional | 參與者退出權，已確認貢獻不得刪除 |
+| 工作項 | ACR 來源 | 狀態 | 實作 ref |
+|--------|---------|------|---------|
+| TokenRule 公式解析器 | ACR-20 Part 2 | ✅ | acp-server `01bc876`（`internal/tokens/rules.go` — `go/parser` AST-restricted evaluator，支援 `floor/ceil/round`、四則；`approve_draft` 自動消費規則並保留 legacy fallback） |
+| `get_token_history()` | ACR-20 Part 7 | ✅ | acp-server `01bc876`（`/tools/get_token_history` + MCP 登錄） |
+| token rank 欄位 | ACR-20 Part 7 | ✅ | acp-server `01bc876`（`get_token_balance` response 追加 `rank` + `total_tokens`，dense-rank SQL） |
+| TokenSnapshot SHA-256 hash | ACR-20 Part 5 | ✅ | acp-server `01bc876`（`internal/tokens/snapshot.go` — `CaptureSnapshot/VerifySnapshot`；ACTIVE→LOCKED 轉場自動快照；`token_snapshots.snapshot_hash` 欄位 + idempotent ALTER migration） |
+| SpaceType 擴展 | ACR-20 Part 1 | ✅ | acp-server `01bc876`（`ValidSpaceTypes` — book / code / music / research / custom；Create 時校驗） |
+| `apply_to_covenant` 完整 ACR-50 流 | ACR-50 | ⏭ | 延至 Phase 4（entry_fee / self_declaration / platform_id_enc 與 ledger 整合需等 Git Twin webhook 對齊後一起做） |
+| `leave_covenant` | Constitutional | ✅ | acp-server `01bc876`（`tools/leave_covenant.go` — owner 禁止、confirmed ledger 不刪；Step 1 gate 自動擋住 left member） |
 
 **可以做：** 所有狀態機 query / 退出路徑齊備；Git Twin 可以放心 map
-**不能做：** 對外 webhook / git bridge（那是 3.A）
+**不能做：** 對外 webhook / git bridge（那是 3.A）；`apply_to_covenant` 完整 ACR-50 流（延至 Phase 4）
 
 ---
 
@@ -396,4 +395,4 @@ Phase 7  ：有真實資金流動需求嗎？律師說合規了嗎？
 
 ---
 
-ACP Roadmap v0.3 · 2026-04-18（Phase 2.5 新增；Phase 3 拆成 3.0 / 3.B / 3.A）
+ACP Roadmap v0.3.3 · 2026-04-18（Phase 3.B 完成；acp-server `01bc876` 合流——TokenRule parser / snapshot hash / leave_covenant 落地，ACR-50 full flow 延至 Phase 4）
